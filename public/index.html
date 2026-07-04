@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced GPS Route Planner - DSA Pathfinding Simulator</title>
+    <!-- Leaflet Map CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <!-- Custom Style -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app-container">
+        <!-- Leaflet Map full size background -->
+        <div id="map"></div>
+
+        <!-- Floating Glassmorphism Controls Panel -->
+        <aside class="control-panel glass">
+            <header class="panel-header">
+                <div class="logo">
+                    <i class="fa-solid fa-compass-drafting logo-icon"></i>
+                    <h1>MapNavigator Pro</h1>
+                </div>
+                <p class="subtitle">Enterprise GPS & DSA Pathfinding Platform</p>
+            </header>
+
+            <div class="panel-content">
+                <!-- Step 1: Set Route & Vehicle -->
+                <section class="control-section">
+                    <h2><span class="step-num">1</span> Configure Route</h2>
+                    
+                    <!-- Scrollable Dropdown for Start -->  
+                    <div class="input-group">
+                        <label for="start-node"><i class="fa-solid fa-location-dot start-color"></i> Start Location</label>
+                        <select id="start-node">
+                            <option value="" disabled selected>— Select starting landmark —</option>
+                        </select>
+                    </div>
+
+                    <!-- Scrollable Dropdown for Destination -->
+                    <div class="input-group">
+                        <label for="end-node"><i class="fa-solid fa-flag-checkered end-color"></i> Destination</label>
+                        <select id="end-node">
+                            <option value="" disabled selected>— Select destination —</option>
+                        </select>
+                    </div>
+
+                    <div class="route-utils">
+                        <button id="swap-nodes-btn" class="icon-btn-secondary" title="Swap Start & End">
+                            <i class="fa-solid fa-arrows-rotate"></i> Swap
+                        </button>
+                        
+                        <!-- Undo / Redo Stacks -->
+                        <div class="stack-controls">
+                            <button id="undo-btn" class="icon-btn-secondary disabled" title="Undo Action (Ctrl+Z)" disabled>
+                                <i class="fa-solid fa-arrow-rotate-left"></i> Undo
+                            </button>
+                            <button id="redo-btn" class="icon-btn-secondary disabled" title="Redo Action (Ctrl+Y)" disabled>
+                                <i class="fa-solid fa-arrow-rotate-right"></i> Redo
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Action History Log -->
+                    <div id="action-history-log" class="history-log">
+                        <span class="history-title">Action History:</span>
+                        <div id="history-items">Empty (Modify roads/traffic to log)</div>
+                    </div>
+                </section>
+
+                <!-- Step 2: Route Profile -->
+                <section class="control-section">
+                    <h2><span class="step-num">2</span> Vehicle & Mode</h2>
+                    <div class="input-group">
+                        <label for="routing-mode"><i class="fa-solid fa-truck-monster"></i> Vehicle Profile</label>
+                        <select id="routing-mode">
+                            <option value="car" selected>🚗 Standard Passenger Car</option>
+                            <option value="bike">🏍️ Motorcycle / Bicycle (Fixed Speed)</option>
+                            <option value="ambulance">🚑 Ambulance (Sirens - Bypass Traffic)</option>
+                            <option value="police">🚓 Police Cruiser (High Speed pursuit)</option>
+                            <option value="fire">🚒 Fire Truck (Priority Clearance)</option>
+                        </select>
+                    </div>
+                </section>
+
+                <!-- Step 3: Alg Selector -->
+                <section class="control-section">
+                    <h2><span class="step-num">3</span> Algorithm Comparison</h2>
+                    
+                    <div class="algo-list">
+                        <label class="algo-card active" data-algo="astar">
+                            <input type="radio" name="algorithm" value="astar" checked>
+                            <div class="algo-info">
+                                <span class="algo-title">A* Search</span>
+                                <span class="algo-desc">Heuristic time limit. Highly targeted.</span>
+                            </div>
+                        </label>
+                        <label class="algo-card" data-algo="dijkstra">
+                            <input type="radio" name="algorithm" value="dijkstra">
+                            <div class="algo-info">
+                                <span class="algo-title">Dijkstra's</span>
+                                <span class="algo-desc">Weighted path scanner. Scans uniformly.</span>
+                            </div>
+                        </label>
+                        <label class="algo-card" data-algo="bellmanford">
+                            <input type="radio" name="algorithm" value="bellmanford">
+                            <div class="algo-info">
+                                <span class="algo-title">Bellman-Ford</span>
+                                <span class="algo-desc">Relaxes all edges dynamically. Cycles detector.</span>
+                            </div>
+                        </label>
+                        <label class="algo-card" data-algo="bfs">
+                            <input type="radio" name="algorithm" value="bfs">
+                            <div class="algo-info">
+                                <span class="algo-title">BFS (Breadth-First)</span>
+                                <span class="algo-desc">Least link count. Ignores weights.</span>
+                            </div>
+                        </label>
+                        <label class="algo-card" data-algo="dfs">
+                            <input type="radio" name="algorithm" value="dfs">
+                            <div class="algo-info">
+                                <span class="algo-title">DFS (Depth-First)</span>
+                                <span class="algo-desc">Recursive pathfinder. Unoptimized.</span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="input-group range-group">
+                        <div class="range-header">
+                            <label for="simulation-speed">Visual Step Delay</label>
+                            <span id="speed-label">Medium (100ms)</span>
+                        </div>
+                        <input type="range" id="simulation-speed" min="0" max="400" value="80" step="10">
+                    </div>
+                </section>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button id="calculate-btn" class="primary-btn">
+                        <i class="fa-solid fa-route"></i> Calculate & Run GPS
+                    </button>
+                    <button id="clear-btn" class="secondary-btn">
+                        <i class="fa-solid fa-trash-can"></i> Reset Board
+                    </button>
+                </div>
+            </div>
+
+            <footer class="panel-footer">
+                <div class="status-indicator">
+                    <span class="pulse-dot green"></span>
+                    <span id="system-status">GPS Active - Ready</span>
+                </div>
+            </footer>
+        </aside>
+
+        <!-- Floating Heap/Priority Queue Operations Visual Panel -->
+        <div id="pq-visual-panel" class="glass hidden">
+            <div class="panel-title-bar">
+                <h3><i class="fa-solid fa-network-wired"></i> Live Solver Monitor</h3>
+            </div>
+            <div class="pq-body">
+                <div class="pq-row">
+                    <span class="pq-label">Current Node:</span>
+                    <span id="pq-curr-node" class="pq-val text-cyan">-</span>
+                </div>
+                <div class="pq-row">
+                    <span class="pq-label">Min-Heap Size:</span>
+                    <span id="pq-size" class="pq-val text-purple">0</span>
+                </div>
+                <div class="pq-list-container">
+                    <span class="pq-label">Min-Heap Heap Elements:</span>
+                    <div id="pq-elements-list" class="pq-elements-list">Queue is empty</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating Analytics Panel -->
+        <div id="analytics-panel" class="glass hidden">
+            <div class="panel-title-bar">
+                <h3><i class="fa-solid fa-chart-simple"></i> GPS & DSA Analytics</h3>
+                <button id="close-analytics"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <!-- Tab Contents -->
+            <div class="analytics-tabs-content">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-label">Total Time</span>
+                        <span id="stat-time" class="stat-value">0.0 min</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Total Distance</span>
+                        <span id="stat-distance" class="stat-value">0.00 km</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Nodes Explored</span>
+                        <span id="stat-explored" class="stat-value">0 / 50</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Search Speed</span>
+                        <span id="stat-solve-time" class="stat-value">0.0 ms</span>
+                    </div>
+                </div>
+
+                <!-- Fuel Estimator Profile -->
+                <div class="analytics-sub-section">
+                    <h4><i class="fa-solid fa-gas-pump"></i> Fuel & Environmental Estimate</h4>
+                    <div class="stats-grid grid-3">
+                        <div class="stat-card">
+                            <span class="stat-label">Fuel Burned</span>
+                            <span id="stat-fuel" class="stat-value">0.00 L</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">Fuel Cost</span>
+                            <span id="stat-cost" class="stat-value">₹0.00</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">Carbon (CO₂)</span>
+                            <span id="stat-co2" class="stat-value">0.00 kg</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HashMap Cache Stats -->
+                <div class="analytics-sub-section cache-box">
+                    <div class="cache-title-row">
+                        <h4><i class="fa-solid fa-database"></i> Route Cache (HashMap)</h4>
+                        <span id="cache-hit-badge" class="badge hit hidden">CACHE HIT</span>
+                    </div>
+                    <div class="cache-metrics">
+                        <div>Hits: <strong id="cache-hits" class="text-cyan">0</strong></div>
+                        <div>Misses: <strong id="cache-misses" class="text-purple">0</strong></div>
+                        <div>Speed Gain: <strong id="cache-savings" class="text-green">0.0 ms</strong></div>
+                    </div>
+                    <button id="clear-cache-btn" class="danger-btn-sm">Flush Memoization Cache</button>
+                </div>
+
+                <!-- K-Shortest Paths Alternative Selection -->
+                <div class="analytics-sub-section">
+                    <h4><i class="fa-solid fa-road-barrier"></i> Alternative Routes (Top 3)</h4>
+                    <div id="alternative-routes-container" class="alternative-routes-container">
+                        No alternative paths computed.
+                    </div>
+                </div>
+
+                <!-- Performance Comparison Dashboard -->
+                <div id="comparison-box" class="comparison-box">
+                    <h4>DSA Expansion Matrix</h4>
+                    <p class="comparison-intro">Comparing nodes checked by different solvers on this path:</p>
+                    <div class="comparison-bar-container">
+                        <div class="comparison-bar-row">
+                            <span class="comp-algo">Selected:</span>
+                            <div class="comp-bar-wrapper">
+                                <div id="comp-bar-selected" class="comp-bar astar-bar" style="width: 0%"></div>
+                            </div>
+                            <span id="comp-val-selected" class="comp-val">0 nodes</span>
+                        </div>
+                        <div class="comparison-bar-row">
+                            <span class="comp-algo">BFS:</span>
+                            <div class="comp-bar-wrapper">
+                                <div id="comp-bar-bfs" class="comp-bar bfs-bar" style="width: 0%"></div>
+                            </div>
+                            <span id="comp-val-bfs" class="comp-val">0 nodes</span>
+                        </div>
+                        <div class="comparison-bar-row">
+                            <span class="comp-algo">Dijkstra:</span>
+                            <div class="comp-bar-wrapper">
+                                <div id="comp-bar-dijkstra" class="comp-bar dijkstra-bar" style="width: 0%"></div>
+                            </div>
+                            <span id="comp-val-dijkstra" class="comp-val">0 nodes</span>
+                        </div>
+                    </div>
+                    <div id="efficiency-win-msg" class="efficiency-win-msg"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating Traffic / Road Status Editor Overlay (Shows when a road is clicked) -->
+        <div id="traffic-overlay" class="glass hidden">
+            <div class="overlay-header">
+                <h4><i class="fa-solid fa-traffic-light"></i> Edit Road Segment</h4>
+                <button id="close-traffic-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="overlay-body">
+                <p id="traffic-street-name" class="street-name">5th Avenue</p>
+                <p id="traffic-street-details" class="street-details">Distance: 0.52 km | Status: Open</p>
+                
+                <!-- Close/Open Segment Buttons -->
+                <div class="closure-section">
+                    <h5>Road Status</h5>
+                    <div class="closure-controls">
+                        <button id="close-road-btn" class="road-status-btn close-road">
+                            <i class="fa-solid fa-road-barrier"></i> Close Road (Block)
+                        </button>
+                        <button id="open-road-btn" class="road-status-btn open-road active">
+                            <i class="fa-solid fa-road"></i> Open Road (Clear)
+                        </button>
+                    </div>
+                </div>
+
+                <div id="traffic-adjust-section">
+                    <h5>Traffic Volume</h5>
+                    <div class="traffic-levels">
+                        <button class="traffic-lvl-btn clear" data-multiplier="1.0">
+                            <i class="fa-solid fa-check"></i> Clear (1.0x)
+                        </button>
+                        <button class="traffic-lvl-btn moderate" data-multiplier="2.0">
+                            <i class="fa-solid fa-car-side"></i> Moderate (2.0x)
+                        </button>
+                        <button class="traffic-lvl-btn heavy" data-multiplier="5.0">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Heavy (5.0x)
+                        </button>
+                        <button class="traffic-lvl-btn jammed" data-multiplier="12.0">
+                            <i class="fa-solid fa-ban"></i> Jammed (12.0x)
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="overlay-footer">
+                <button id="save-traffic-btn" class="primary-btn-sm">Apply Changes</button>
+                <button id="reset-all-traffic" class="danger-btn-sm">Reset City Grid</button>
+            </div>
+        </div>
+
+        <!-- Leaflet Legend Map Overlay -->
+        <div class="map-legend glass">
+            <h4>Traffic Legend</h4>
+            <div class="legend-item"><span class="legend-color clear-line"></span> Clear (1x speed)</div>
+            <div class="legend-item"><span class="legend-color moderate-line"></span> Moderate (0.5x speed)</div>
+            <div class="legend-item"><span class="legend-color heavy-line"></span> Heavy (0.2x speed)</div>
+            <div class="legend-item"><span class="legend-color jammed-line"></span> Jammed (0.08x speed)</div>
+            <div class="legend-item"><span class="legend-color closed-line"></span> Blocked / Closed Road</div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- Custom DSA script libraries -->
+    <script src="trie.js"></script>
+    <script src="undo-stack.js"></script>
+    
+    <!-- Frontend JS App -->
+    <script src="app.js"></script>
+</body>
+</html>
